@@ -1,9 +1,5 @@
 # Sac-cost fizzle crash: candidate causes (hypotheses only, nothing here has been run or changed)
 
-> **Update (engine split):** the `logs/sac_fizzle_diagnostics.jsonl` dump described below (`_dump_sac_fizzle_diagnostic` in
-> `black_cards.py`) was deleted when the engine moved to its own repo, by owner decision. This document is kept as the
-> record of the hypotheses; the one real record it analyses is no longer reproducible from a new run.
-
 
 The crash: `_sac_artifact_or_creature._on_chosen` ([black_cards.py:363](src/game/catalog/black_cards.py#L363)) receives
 `choice=None` and dies on `name, slot = choice`. `begin_choose_permanent`

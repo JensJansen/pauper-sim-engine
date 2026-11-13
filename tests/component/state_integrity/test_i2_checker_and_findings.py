@@ -104,3 +104,23 @@ def test_maelstrom_colossus_is_not_in_the_graveyard_once_it_has_resolved():
     st.players[0].library = [game.CARD_DEFS["Mountain"]]  # a whiff: Cascade finds no nonland card, so it just enters
     game.catalog.colorless_cards.cast_maelstrom_colossus(st, colossus)
     assert "conservation" not in _ids(st, base)
+
+
+def test_a_graveyard_ability_payment_is_not_left_counting_as_a_cast():
+    """F-04 sibling: Bramble Wurm's exile-from-graveyard ability pays a cost and DOES reach the stack
+    (push_ability_to_stack), which uncounts the cast; pinned directly because the corpus rarely reaches it."""
+    from drl_env import _actions_cast
+    st = _state(["Forest", "Forest", "Forest", "Forest"])
+    st.players[0].graveyard.append(CardInstance(game.CARD_DEFS["Bramble Wurm"], iid=900))
+    cost = game.CARD_DEFS["Bramble Wurm"].extra["gy_ability_cost"]
+    assert game.plan_payment(st, cost) is not None
+    _actions_cast._graveyard_ability_execute("Bramble Wurm", "gy_ability_cost",
+                                             game.EFFECT_REGISTRY[game.CARD_DEFS["Bramble Wurm"].effect_id]["graveyard_ability"]["resolve"])(st)
+    while st.pending_resolution is not None and st.pending_resolution["kind"] == "pay_cost":
+        src = next(p for p in st.players[0].battlefield if not p.tapped)
+        game.activate_mana_source(st, src)
+        for sym in [s for s, k in st.players[0].mana_pool.items() if k]:
+            if st.pending_resolution is not None and st.pending_resolution["kind"] == "pay_cost":
+                game.execute_pool_spend(st, sym)
+    assert st.casting_depth == 0
+    assert "casting_depth" not in _ids(st, I.baseline(st))

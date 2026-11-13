@@ -507,7 +507,7 @@ def _graveyard_ability_execute(name, cost_key, resolve):
 
         def _proceed(state, inst):
             # Copy chosen, then cost paid (602.2/601.2a order), then resolve.
-            game.begin_pay_cost(state, cost, on_complete=lambda s, inst=inst: resolve(s, inst), counts_as_cast=False)
+            game.begin_pay_cost(state, cost, on_complete=lambda s, inst=inst: resolve(s, inst))
 
         _with_chosen_copy(state, name, _proceed)
     return execute

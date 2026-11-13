@@ -15,7 +15,7 @@ AS = "tests/component/action_space"
 TEST_PATHS = [
     f"{AS}/test_a0_structure.py", f"{AS}/test_a4_copies_and_costs.py", f"{AS}/test_a2_oracle.py", f"{AS}/test_a1_purity.py",
     f"{AS}/test_a6_combat.py", f"{AS}/test_a7_scenarios.py", f"{AS}/test_a3_execute.py", f"{AS}/test_a5_mana.py",
-    f"{AS}/test_action_table.py", f"{AS}/test_action_bridge.py",
+    f"{AS}/test_action_table.py", f"{AS}/test_action_bridge.py", "tests/unit/drl_env/test_sac_cost_taps.py",
 ]
 # One game per ordered pair and no disk cache (the cache is keyed to the REAL source, which a scratch copy would not match).
 ENV = {"ACTION_CORPUS_GAMES": "1", "ACTION_CORPUS_NOCACHE": "1", "ACTION_PURITY_EVERY": "12"}
@@ -46,10 +46,10 @@ MUTATIONS = [
      "def _pass_legal(state):\n    state.rng.random()\n    if state.pending_resolution is not None:\n        return False",
      "computing the mask consumes randomness"),
     # --- casting ---
-    (C, "        if game.plan_payment(state, _effective_cast_cost(state, card_def)) is None:\n            return False\n        return extra_legal is None or extra_legal(state)",
+    (C, "        if not payable_keeping_extra_cost(state, _effective_cast_cost(state, card_def), extra_legal):\n            return False\n        return extra_legal is None or extra_legal(state)",
      "        return extra_legal is None or extra_legal(state)", "a spell is offered without checking it can be paid for"),
-    (C, "        if _hand_count_available(state, name) <= 0:\n            return False\n        card_def = game.CARD_DEFS[name]\n        if game.plan_payment(state, _effective_cast_cost",
-     "        card_def = game.CARD_DEFS[name]\n        if game.plan_payment(state, _effective_cast_cost", "a spell is offered with no copy in hand"),
+    (C, "        if _hand_count_available(state, name) <= 0:\n            return False\n        card_def = game.CARD_DEFS[name]\n        if not payable_keeping_extra_cost(state, _effective_cast_cost",
+     "        card_def = game.CARD_DEFS[name]\n        if not payable_keeping_extra_cost(state, _effective_cast_cost", "a spell is offered with no copy in hand"),
     (C, 'reduced["generic"] = max(0, reduced.get("generic", 0) - reduction)', 'reduced["generic"] = max(0, reduced.get("generic", 0) - 0)',
      "cost reduction ignored"),
     (C, 'reduced["generic"] = max(0, reduced.get("generic", 0) - reduction)', 'reduced["generic"] = max(0, reduced.get("generic", 0) - reduction - 1)',
@@ -71,7 +71,7 @@ MUTATIONS = [
     # --- mana ---
     (M, "        or (state.phase in game.turn.SORCERY_SPEED_PHASES and state.active_idx == state.turn_player_idx)",
      "        or (state.phase in game.turn.SORCERY_SPEED_PHASES)", "speculative mana ability allowed on the opponent's turn"),
-    (M, "    return game.payment_survives(\n        state, game.units_after(state, tapped=[source], produced=produced, own_ability_tap=source))",
+    (M, "    return any(\n        game.payment_survives(state, game.units_after(\n            state, tapped=[source, *held_back], produced=produced, own_ability_tap=source))\n        for held_back in unusable_for_extra_cost(state, extra, gone=gone))",
      "    return True", "strand rule removed: a tap that makes the payment impossible is offered"),
     (R, '            and color in game.pool_spend_options(state)', "", "spend-from-pool offered for any color"),
     (GM, "if state.mana_pool.get(color, 0) > 0 and (remaining.get(color, 0) > 0 or generic_needed)",
@@ -154,6 +154,12 @@ MUTATIONS = [
     (GM, "        elif granted:", "        elif False:", "F-03 back: a grant on a multi-symbol source is dropped from affordability"),
     (GM, "for combo in product(*(c.alternatives for c in choices)))", "for combo in product(*(c.alternatives[:1] for c in choices)))",
      "an either-or supply unit is only ever used its first way"),
+    # --- the sacrifice-cost fizzle (a self-sacrificing mana source that is the only fodder) ---
+    ("drl_env/_actions_mana.py", "        for held_back in unusable_for_extra_cost(state, extra, gone=gone))", "        for held_back in [[]])",
+     "a Lotus Petal / Treasure that is the only sacrifice fodder may be tapped for mana mid-payment (the sac-cost fizzle crash)"),
+    ("drl_env/_actions_common.py", "    for held_back in unusable_for_extra_cost(state, extra_legal):\n        if not held_back:",
+     "    for held_back in [[]]:\n        if not held_back:",
+     "a cast that needs its only fodder for mana is offered (announcement-time half of the sac-cost fizzle)"),
     # --- decision buttons and "Choose: X" (judged by the oracle's _pending_labels) ---
     (R, "    return pending is not None and pending[\"kind\"] == \"ancient_stirrings\"\n\n\n_decline_legal._pending_gate",
      "    return False\n\n\n_decline_legal._pending_gate", "Ancient Stirrings' Decline button never legal"),

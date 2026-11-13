@@ -5,7 +5,7 @@ Two tiers, each a folder. Unit tests mirror `src/`; components are named for the
 | Tier | What it is | Where |
 |---|---|---|
 | **Unit** | One card, function or rule, with fabricated inputs. Deterministic. | `tests/unit/` (`unit/game/catalog/…`, `unit/game/effects/…`, `unit/drl_env/…`) |
-| **Component** | A subsystem tested against its *contract* over real games: independent oracles, invariance checks, coverage gates, exhaustive searches, planted bugs. | `tests/component/<name>/` (today: `action_space`) |
+| **Component** | A subsystem tested against its *contract* over real games: independent oracles, invariance checks, coverage gates, exhaustive searches, planted bugs. | `tests/component/<name>/` (today: `action_space`, `state_integrity`, `determinism`) |
 
 The tier marker (`unit` / `component`) is applied automatically from the folder, so `pytest -m unit` and
 `pytest tests/unit` are the same.
@@ -14,6 +14,8 @@ The tier marker (`unit` / `component`) is applied automatically from the folder,
 pip install -r requirements.txt && pip install -e .
 pytest tests/unit                          # seconds -- also the pre-push gate
 pytest tests/component/action_space        # the action-space component
+pytest tests/component/state_integrity     # whole-game invariants over real self-play
+pytest tests/component/determinism         # same seed + actions => same game, state for state
 pytest tests                               # everything
 python tests/support/mutation_sweep.py action_space   # plant deliberate bugs, report any the suite misses
 ```

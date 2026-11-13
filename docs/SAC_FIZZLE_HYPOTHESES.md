@@ -1,4 +1,17 @@
-# Sac-cost fizzle crash: candidate causes (hypotheses only, nothing here has been run or changed)
+# Sac-cost fizzle crash
+
+> **RESOLVED 2026-11-13.** Cause: **H3** (with H0's missing precondition). The sacrifice is chosen after the mana is paid, and
+> Lotus Petal / Treasure sacrifice themselves when tapped for mana, so tapping one that was the ONLY sacrifice fodder left
+> `begin_choose_permanent` with nothing to offer (`choice=None`). Reproduced in the action-space corpus (coverage_4 vs
+> coverage_3, game 18: Lotus Petal tapped mid-payment for Reckoner's Bargain). The production dump (zero non-land permanents, a
+> stray floating pip from a third mana source) is the same signature. H1, H2, H4-H9 were not needed to explain it.
+> Fix (drl_env only): while a cast's payment is open, a tap that would remove permanents the spell's own cost needs (its registry
+> `extra_legal`) is refused, and the cast is not offered at all when it could only be paid by consuming its own fodder
+> (`drl_env/_actions_common.py::unusable_for_extra_cost`, `payable_keeping_extra_cost`; `_actions_mana._tap_survives`).
+> Regression: `tests/unit/drl_env/test_sac_cost_taps.py`, planted bugs 64-65, and the corpus run in `test_a2_oracle.py` (the strict
+> xfail is gone). `_dump_sac_fizzle_diagnostic` is kept (removing it changes the encoder width). Text below is the original analysis.
+
+# Candidate causes (the original hypotheses, written before the cause was found)
 
 
 The crash: `_sac_artifact_or_creature._on_chosen` ([black_cards.py:363](src/game/catalog/black_cards.py#L363)) receives

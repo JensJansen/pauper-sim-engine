@@ -8,7 +8,9 @@ factory pair that build_action_table calls once per matching card."""
 import game
 
 from ._actions_cast_altzone import _with_chosen_copy
-from ._actions_common import _GATE_NO_PENDING, _hand_count_available, distinct_copies
+from ._actions_common import (
+    _GATE_NO_PENDING, _begin_cast_payment, _hand_count_available, cast_extra_legal, distinct_copies, payable_keeping_extra_cost,
+)
 
 # Shared button-count caps for choose_cast_mode/choose_cast_x/
 # choose_delve_amount (sized to the current catalog's max: 5 modes, X=0..10,
@@ -77,7 +79,7 @@ def _cast_legal(name, extra_legal, speed):
         if _hand_count_available(state, name) <= 0:
             return False
         card_def = game.CARD_DEFS[name]
-        if game.plan_payment(state, _effective_cast_cost(state, card_def)) is None:
+        if not payable_keeping_extra_cost(state, _effective_cast_cost(state, card_def), extra_legal):
             return False
         return extra_legal is None or extra_legal(state)
     legal._pending_gate = _GATE_NO_PENDING
@@ -93,7 +95,7 @@ def _cast_execute(name, resolve):
             # Cast but not yet resolved -- push onto the stack rather than
             # resolving immediately, so priority can pass first.
             game.push_to_stack(s, card_def, resolve)
-        game.begin_pay_cost(state, _effective_cast_cost(state, card_def), on_complete=_after_pay)
+        _begin_cast_payment(state, _effective_cast_cost(state, card_def), _after_pay, cast_extra_legal(name))
     return execute
 
 
@@ -108,7 +110,7 @@ def _precast_choice_execute(name, resolve):
         def _after_pay(s):
             game.on_cast_trigger(s, card_def)
             resolve(s, card_def)
-        game.begin_pay_cost(state, _effective_cast_cost(state, card_def), on_complete=_after_pay)
+        _begin_cast_payment(state, _effective_cast_cost(state, card_def), _after_pay, cast_extra_legal(name))
     return execute
 
 
@@ -456,7 +458,7 @@ def _activate_legal(name, cost_key, speed, extra_legal=None, taps=True):
 def _activate_execute(name, cost_key, resolve, taps=True):
     def execute(state):
         def _proceed(state, p):
-            game.begin_pay_cost(state, p.card_def.extra[cost_key], on_complete=lambda s: resolve(s, p))
+            game.begin_pay_cost(state, p.card_def.extra[cost_key], on_complete=lambda s: resolve(s, p), counts_as_cast=False)
         _with_chosen_copy_on_battlefield(state, _activation_copies(state, name, taps), _proceed)
     return execute
 
@@ -476,7 +478,7 @@ def _forestcycle_legal(name, cost_key):
 def _forestcycle_execute(name, cost_key, resolve):
     def execute(state):
         card_def = game.CARD_DEFS[name]
-        game.begin_pay_cost(state, card_def.extra[cost_key], on_complete=lambda s: resolve(s, card_def))
+        game.begin_pay_cost(state, card_def.extra[cost_key], on_complete=lambda s: resolve(s, card_def), counts_as_cast=False)
     return execute
 
 
@@ -505,7 +507,7 @@ def _graveyard_ability_execute(name, cost_key, resolve):
 
         def _proceed(state, inst):
             # Copy chosen, then cost paid (602.2/601.2a order), then resolve.
-            game.begin_pay_cost(state, cost, on_complete=lambda s, inst=inst: resolve(s, inst))
+            game.begin_pay_cost(state, cost, on_complete=lambda s, inst=inst: resolve(s, inst), counts_as_cast=False)
 
         _with_chosen_copy(state, name, _proceed)
     return execute

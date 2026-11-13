@@ -27,7 +27,7 @@ def departing_card_def(permanent):
 def check_state_based_actions(state):
     """Creature-death check: every creature on either battlefield with
     lethal marked damage, or any deathtouch damage, dies to the graveyard,
-    its Auras orphaned. Collects all dead first, then removes them
+    its Auras orphaned; then any Aura whose permanent left some other way (704.5m). Collects all dead first, then removes them
     (simultaneous SBA semantics). Also the choke point that logs
     "stats_changed" events for the replay viewer (see _log_stat_changes)."""
     candidates = [
@@ -45,6 +45,7 @@ def check_state_based_actions(state):
     ]
     for permanent in dead:
         _destroy_creature(state, permanent)
+    orphan_unattached_auras(state)  # 704.5m: also catches a non-creature that left some other way
 
 
 def _log_stat_changes(state, candidates, enchanting_by_target):
@@ -115,28 +116,34 @@ def _destroy_creature(state, permanent):
         to_zone=("ceases_to_exist" if departed_is_token else "graveyard"),
     )
     _queue_leave_triggers(state, permanent, owner_idx)
-    orphaned = [p for p in owner.battlefield if p.flags.get("enchanting") is permanent]
-    for aura in orphaned:
-        spec = registry.EFFECT_REGISTRY.get(aura.card_def.effect_id, {})
-        if spec.get("becomes_creature_when_orphaned", False):
-            aura.flags.pop("enchanting", None)
-            aura.type_override = None
-            state.log_event(
-                "aura_orphaned", aura=(aura.card_def.name, aura.slot), target=(permanent.card_def.name, permanent.slot),
-                outcome="stays_as_creature",
-            )
-            continue
-        owner.battlefield.remove(aura)
-        if spec.get("returns_to_hand_when_orphaned", False):
-            owner.hand.append(aura.card_def)
-            outcome = "hand"
-        else:
-            state.move_card(aura.card_def, owner.graveyard)
-            outcome = "graveyard"
-        state.log_event(
-            "aura_orphaned", aura=(aura.card_def.name, aura.slot), target=(permanent.card_def.name, permanent.slot),
-            outcome=outcome,
-        )
+    orphan_unattached_auras(state)
+
+
+def orphan_unattached_auras(state):
+    """704.5m: an Aura enchanting something that is no longer on the battlefield is put into the graveyard (Rancor:
+    returns to hand; a Bestowed permanent stays and reverts to a creature). Whatever made the permanent leave -- death,
+    sacrifice, destroy, bounce, exile -- the Aura is found by its dangling "enchanting" reference, on EITHER battlefield
+    (an Aura may enchant the other player's permanent). Called when a creature dies and from every state-based check."""
+    on_bf = {id(p) for pl in state.players for p in pl.battlefield}
+    for holder in state.players:
+        for aura in [p for p in holder.battlefield if p.flags.get("enchanting") is not None
+                     and id(p.flags["enchanting"]) not in on_bf]:
+            permanent = aura.flags["enchanting"]
+            spec = registry.EFFECT_REGISTRY.get(aura.card_def.effect_id, {})
+            event = dict(aura=(aura.card_def.name, aura.slot), target=(permanent.card_def.name, permanent.slot))
+            if spec.get("becomes_creature_when_orphaned", False):
+                aura.flags.pop("enchanting", None)
+                aura.type_override = None
+                state.log_event("aura_orphaned", outcome="stays_as_creature", **event)
+                continue
+            holder.battlefield.remove(aura)
+            if spec.get("returns_to_hand_when_orphaned", False):
+                holder.hand.append(aura.card_def)
+                outcome = "hand"
+            else:
+                state.move_card(aura.card_def, holder.graveyard)
+                outcome = "graveyard"
+            state.log_event("aura_orphaned", outcome=outcome, **event)
 
 
 def destroy_permanent(state, permanent):

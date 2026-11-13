@@ -23,6 +23,7 @@ judged here: the combat buttons (A6) and the mana sub-decision rows Produce/Filt
 Rules that differ from the real game on purpose are listed in AUTHORIZED / ASSUMPTIONS below. The oracle follows the
 authorized ones (so it does not report them) and reports everything else.
 """
+import itertools
 import re
 
 import game
@@ -42,8 +43,9 @@ AUTHORIZED = {
         "(owner-accepted 2026-08-17, game/mana.py::source_mana_units).",
     "strand-rule":
         "While a payment is open, a mana ability is offered only if the remaining cost can still be paid afterwards "
-        "(game/mana.py STRANDING INVARIANT). Real Magic lets you tap for the wrong color and rewinds (732) "
-        "(owner-accepted 2026-11-12).",
+        "(game/mana.py STRANDING INVARIANT) -- and, for a spell with a non-mana additional cost (sacrifice), only if that cost "
+        "stays payable (a Lotus Petal / Treasure that is the only fodder is not offered). Real Magic lets you tap for the wrong "
+        "color and rewinds (732) (owner-accepted 2026-11-12; the sacrifice extension is the sac-cost-fizzle fix).",
     "no-undo-blocking":
         "Declare-blockers is linearized, one blocker at a time, with no undo (owner 2026-07-31).",
 }
@@ -433,7 +435,7 @@ def _cast_spec_labels(state, name, spec_owner_name=None):
     cast = spec.get("cast")
     if cast is not None:
         speed = default_speed(card_def, cast)
-        if (timing_ok(state, speed) and can_afford(state, effective_cost(state, card_def))
+        if (timing_ok(state, speed) and can_afford_keeping(state, effective_cost(state, card_def), cast.get("extra_legal"))
                 and (cast.get("extra_legal") is None or cast["extra_legal"](state))):
             out.add(f"Cast {name}")
     modes = spec.get("cast_modes")
@@ -511,7 +513,7 @@ def _graveyard_labels(state, me, name):
         if gy is None or not timing_ok(state, default_speed(card_def, gy)):
             continue
         cost = gy.get("cost")
-        if cost is not None and not can_afford(state, cost):
+        if cost is not None and not can_afford_keeping(state, cost, gy["legal"]):
             continue
         if gy["legal"](state):
             out.add(f"{label} {name}")
@@ -620,11 +622,53 @@ def _tap_labels(state, me, pend):
                 break
             entry = REG.get(p.card_def.effect_id, {})
             dying = entry.get("mana_tap_removes_self") is not None and entry["mana_tap_removes_self"](state, p)
-            rest = _all_sources(state, exclude={p} if dying else set(), skip={p})
-            if payable(pool + produced, rest, remaining):
+            extra = pend.get("extra_legal")
+            gone = [p] if extra is not None and _tap_sacrifices(state, p) else []
+            if any(payable(pool + produced, _all_sources(state, exclude={p} if dying else set(), skip={p} | skip), remaining)
+                   for skip in _skip_sets(state, extra, gone=gone)):
                 out.add(label)
                 break
     return out
+
+
+def _tap_sacrifices(state, p):
+    """Rules text: a mana ability whose cost is "Sacrifice this" (Lotus Petal, Treasure), or the registry's own
+    declaration that tapping removes the permanent (Wall of Roots at lethal damage)."""
+    entry = REG.get(p.card_def.effect_id, {})
+    return p.card_def.name in ("Lotus Petal", "Treasure") or (
+        entry.get("mana_tap_removes_self") is not None and bool(entry["mana_tap_removes_self"](state, p)))
+
+
+def _skip_sets(state, extra, gone=()):
+    """601.2h: a spell with a non-mana cost (`extra`, its registry predicate) needs that cost payable too. A source that is
+    sacrificed by being tapped (Lotus Petal, Treasure) may be the only thing paying it. Returns every set of such sources
+    that must be left untapped, one per set the player could consume while `extra` still holds with `gone` + that set off
+    the battlefield ([set()] when there is no predicate or nothing to protect)."""
+    if extra is None:
+        return [set()]
+    me = _me(state)
+    removable = [p for p in me.battlefield if p not in gone and source_alternatives(state, p) is not None
+                 and _tap_sacrifices(state, p)]
+    out = []
+    for r in range(len(removable), -1, -1):
+        for consumed in itertools.combinations(removable, r):
+            off = list(gone) + list(consumed)
+            idx = [(me.battlefield.index(p), p) for p in off]
+            for _i, p in idx:
+                me.battlefield.remove(p)
+            try:
+                ok = bool(extra(state))
+            finally:
+                for i, p in sorted(idx, key=lambda t: t[0]):
+                    me.battlefield.insert(i, p)
+            if ok:
+                out.append({p for p in removable if p not in consumed})
+    return out
+
+
+def can_afford_keeping(state, cost, extra):
+    """can_afford, but leaving the spell's own non-mana cost (`extra`) payable (see _skip_sets)."""
+    return any(payable(_pool_symbols(_me(state)), _all_sources(state, skip=skip), cost) for skip in _skip_sets(state, extra))
 
 
 def _native_output(state, me, p, spec):

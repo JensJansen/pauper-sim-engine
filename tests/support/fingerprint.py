@@ -13,7 +13,9 @@ from enum import Enum
 _SKIP = {"event_log", "on_mana_burn", "on_single_pip_burn"}
 
 
-def state_fingerprint(state):
+def state_fingerprint(state, ignore_keys=()):
+    """`ignore_keys`: dict keys left out wherever they appear (logging bookkeeping such as the `_logged_pt` flag, which only
+    updates while an event log is on, for comparing a logged game with an unlogged one)."""
     ids = {}
 
     def walk(o, depth=0):
@@ -32,7 +34,7 @@ def state_fingerprint(state):
         if isinstance(o, (set, frozenset)):
             return ("set", tuple(sorted((repr(walk(x, depth + 1)) for x in o))))
         if isinstance(o, dict):
-            return ("dict", tuple(sorted(((repr(walk(k, depth + 1)), walk(v, depth + 1)) for k, v in o.items()),
+            return ("dict", tuple(sorted(((repr(walk(k, depth + 1)), walk(v, depth + 1)) for k, v in o.items() if k not in ignore_keys),
                                          key=lambda kv: kv[0])))
         key = id(o)
         if key in ids:

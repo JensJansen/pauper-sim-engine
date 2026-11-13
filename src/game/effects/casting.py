@@ -173,9 +173,9 @@ def cast_aura(state, card_def, target_predicate, on_attached=None, no_target_fal
     battlefield as a creature.
 
     An Aura returns to the graveyard (or, for Rancor, to hand) when
-    whatever it enchants leaves the battlefield ("orphaning") -- modeled
-    only for combat death (state_based._destroy_creature); other removal
-    paths don't currently orphan an enchanted permanent's Auras."""
+    whatever it enchants leaves the battlefield ("orphaning", 704.5m) -- by
+    whatever route: state_based.orphan_unattached_auras runs in every
+    state-based check."""
     def _on_target_chosen(state, target_descriptor):
         captured = capture_any_target(state, target_descriptor)
 

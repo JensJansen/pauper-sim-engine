@@ -200,10 +200,11 @@ def begin_pay_cost(state, cost, on_complete, counts_as_cast=True):
     state-based-action check while this spell/ability is still being cast
     (see casting_depth's own docstring on game.state.GameState). The
     caller's matching game.effects.stack.push_to_stack decrements it back.
-    Pass False for a cost that pays for an outcome of something ALREADY on
-    the stack rather than casting something new -- e.g.
-    handlers_casting.pay_unless_pay (Ward/Spell Pierce) -- which never
-    reaches push_to_stack and would leak the counter otherwise."""
+    Pass False for a cost that is not a cast and never reaches push_to_stack,
+    which would leak the counter otherwise: paying for an outcome of
+    something ALREADY on the stack (handlers_casting.pay_unless_pay --
+    Ward/Spell Pierce), cycling, activated abilities (Map's explore, ...)
+    and Plot (drl_env._actions_cast / _actions_cast_altzone)."""
     # The STRANDING INVARIANT (see module docstring), checked here so a
     # caller that skipped plan_payment fails with the guilty call site in
     # the traceback, not several actions later as an opaque all-False mask.

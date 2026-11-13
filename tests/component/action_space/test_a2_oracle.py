@@ -31,12 +31,6 @@ FINDINGS = {}
 #   (cost-key abilities required an untapped copy even without {T} in the cost -> per-ability "taps" key, FIXED 2026-11-12.)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "KNOWN ENGINE BUG (owner-acknowledged 2026-11-12, to be fixed later): the sac-cost fizzle -- a cast with an "
-    "additional 'sacrifice an artifact or creature' cost (Reckoner's Bargain, Fanatical Offering, Eviscerator's Insight) "
-    "reaches its sacrifice with no fodder, begin_choose_permanent completes with None and _on_chosen dies on "
-    "`name, slot = choice`. Seen in this corpus as coverage_4 vs coverage_3, game 18. See docs/SAC_FIZZLE_HYPOTHESES.md. "
-    "strict: when the bug is fixed this XPASSes and fails, so the marker gets removed."))
 def test_no_oracle_errors_and_no_game_crashes(action_corpus):
     assert not action_corpus.errors, action_corpus.errors[:3]
     assert not action_corpus.oracle_errors, action_corpus.oracle_errors[:3]

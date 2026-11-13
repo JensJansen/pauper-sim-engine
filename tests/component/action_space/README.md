@@ -26,6 +26,12 @@ attributed to a named finding (mimic modes in `support/action_oracle.py`).
   Growth on Rakdos Carnarium, Tron lands, Battlement/Priest with 2+ matches) was dropped when judging affordability. Such a
   source is now an `EitherOr` supply unit (`game/mana.py`): `can_pay` tries each way, exactly. No finding is open.
 
+- Resolved 2026-11-13: the **sac-cost fizzle** (Reckoner's Bargain / Fanatical Offering / Eviscerator's Insight reached their
+  sacrifice with no fodder because a Lotus Petal / Treasure that was the only fodder had been tapped for mana mid-payment).
+  A tap that would remove permanents the spell's own cost needs is now refused, and such a cast is not offered when it could only
+  be paid by consuming its own fodder (`drl_env/_actions_common.py`); the oracle mirrors it (`_skip_sets`), covered by the same
+  strand-rule authorization. Regression: `tests/unit/drl_env/test_sac_cost_taps.py`; planted bugs 64-65; no xfail left in A2.
+
 Authorized deviations the oracle follows are listed in `support/action_oracle.AUTHORIZED` (speculative floating only in your
 own main phase; Saruli excluded from supply; the strand rule, owner-accepted 2026-11-12; no-undo blocking).
 

@@ -342,7 +342,7 @@ def test_maelstrom_colossus_cascade_casts_hit_for_free():
         cast_maelstrom_colossus(state, colossus)
         assert state.pending_resolution["kind"] == "may_cast"  # Cascade offers the caster a may-cast
         resolution.execute_may_cast(state, True)               # choose to cast the hit for free
-        assert [c.name for c in state.graveyard] == [colossus.name]
+        assert state.graveyard == []  # Colossus never visits the graveyard; it just enters
         assert sorted(p.card_def.name for p in state.battlefield) == ["Free Hit", "Maelstrom Colossus"]
         # only cards exiled alongside the hit get shuffled back; cards below the hit are untouched
         assert [c.name for c in state.library] == ["Never Seen", "A Land"]

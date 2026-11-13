@@ -15,7 +15,8 @@ Two rules cut across every entry point here:
                        active player's own main phase (the one AUTHORIZED
                        SIMPLIFICATION). Never mid-cast before 601.2f.
   payment_survives     WHETHER this specific activation would leave an open
-                       payment finishable. See game.mana's STRANDING INVARIANT:
+                       payment finishable (and the spell's own sacrifice-style
+                       extra cost still payable: _tap_survives). See game.mana's STRANDING INVARIANT:
                        tapping is not automatically safe, because a color CHOICE
                        collapses to one concrete color.
 
@@ -24,7 +25,7 @@ legal(state)/execute(state) factory pairs build_action_table
 
 import game
 
-from ._actions_common import distinct_copies
+from ._actions_common import distinct_copies, taps_away, unusable_for_extra_cost
 
 _mana_ability_options_cache = None  # (state, result) -- one legal_action_mask sweep, same lifecycle as this module's other sweep-scoped caches
 
@@ -77,10 +78,17 @@ def _mana_timing_legal(state):
 
 
 def _tap_survives(state, source, color):
-    """Would tapping `source` for `color` leave an open payment finishable (the strand rule)? True when none is open."""
+    """Would tapping `source` for `color` leave an open payment finishable (the strand rule)? True when none is open.
+    For a spell with a non-mana cost (pending["extra_legal"], see drl_env._actions_common._begin_cast_payment) the
+    sources that would break it if tapped too (a Lotus Petal that is the only sacrifice fodder) are held back."""
     produced = [frozenset({symbol}) for symbol in game.mana_output(source, state, color)]
-    return game.payment_survives(
-        state, game.units_after(state, tapped=[source], produced=produced, own_ability_tap=source))
+    pending = state.pending_resolution
+    extra = pending.get("extra_legal") if pending is not None and pending["kind"] == "pay_cost" else None
+    gone = [source] if extra is not None and taps_away(state, source) else []
+    return any(
+        game.payment_survives(state, game.units_after(
+            state, tapped=[source, *held_back], produced=produced, own_ability_tap=source))
+        for held_back in unusable_for_extra_cost(state, extra, gone=gone))
 
 
 def _mana_ability_legal(name, color):

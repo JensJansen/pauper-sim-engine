@@ -413,11 +413,10 @@ class GameState:
         # A counter, not a bool: begin_pay_cost can be reentered before the
         # outer spell reaches the stack (e.g. a cost that itself triggers
         # another cost payment). Incremented by begin_pay_cost by default;
-        # its one documented exception is game.resolution.handlers_casting.
-        # pay_unless_pay (Ward/Spell Pierce's "pay to avoid an outcome"),
-        # which pays a cost for something ALREADY on the stack and never
-        # reaches push_to_stack -- begin_pay_cost's counts_as_cast=False
-        # opts that call out. Self-heals to 0 at the top of every fresh
+        # its documented exceptions pay a cost without casting: game.resolution.
+        # handlers_casting.pay_unless_pay (Ward/Spell Pierce's "pay to avoid an
+        # outcome"), cycling, activated abilities and Plot -- none reaches
+        # push_to_stack, so they pass begin_pay_cost's counts_as_cast=False. Self-heals to 0 at the top of every fresh
         # _run_priority_round_gen (once per phase/step) as a blast-radius
         # bound against any uncaught exception or as-yet-undiscovered
         # begin_pay_cost path that skips push_to_stack.

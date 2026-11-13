@@ -8,7 +8,7 @@ card."""
 
 import game
 
-from ._actions_common import _GATE_NO_PENDING, _hand_count_available
+from ._actions_common import _GATE_NO_PENDING, _begin_cast_payment, _hand_count_available, cast_extra_legal, payable_keeping_extra_cost
 
 
 def _alt_cast_legal(name, extra_legal, speed):
@@ -59,7 +59,7 @@ def _flashback_legal(name, ability_legal, speed, cost=None):
             return False
         if not any(c.name == name for c in state.graveyard):
             return False
-        if cost is not None and game.plan_payment(state, cost) is None:
+        if cost is not None and not payable_keeping_extra_cost(state, cost, ability_legal):
             return False
         return ability_legal(state)
     legal._pending_gate = _GATE_NO_PENDING
@@ -121,7 +121,7 @@ def _flashback_execute(name, resolve, cost=None):
             def _after_pay(state, inst=inst):
                 game.on_cast_trigger(state, inst)
                 resolve(state, inst)
-            game.begin_pay_cost(state, cost, on_complete=_after_pay)
+            _begin_cast_payment(state, cost, _after_pay, cast_extra_legal(name, "flashback"))
 
         _with_chosen_copy(state, name, _proceed)
     return execute
@@ -149,7 +149,7 @@ def _plot_execute(name, cost, resolve):
         card_def = game.CARD_DEFS[name]
         # Plotting isn't casting the spell -- on_cast_trigger fires later, from
         # _cast_from_exile_execute, once it's actually cast.
-        game.begin_pay_cost(state, cost, on_complete=lambda s: resolve(s, card_def))
+        game.begin_pay_cost(state, cost, on_complete=lambda s: resolve(s, card_def), counts_as_cast=False)
     return execute
 
 

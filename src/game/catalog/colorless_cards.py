@@ -333,7 +333,8 @@ def cast_maelstrom_colossus(state, card_def):
     Ancient Stirrings' take-one-or-decline), Colossus's battlefield entry
     chains onto that resolution's on_complete instead of running
     immediately, so it lands only once the cascaded card is fully done."""
-    discard_from_hand_to_graveyard(state, card_def)
+    if card_def in state.hand:  # already left hand at cast; only a direct call (self-check) still has it there
+        state.hand.remove(card_def)
     exiled = []
     hit = None
     while state.library:
@@ -605,6 +606,7 @@ COLORLESS_EFFECT_REGISTRY = {
         # {T}, Sacrifice: Add one mana of any color (ceases to exist; not graveyard-bound).
         "mana": ("flexible", set(COLORS)),
         "on_tap": lambda state, permanent: _treasure_on_tap(state, permanent),
+        "mana_tap_removes_self": lambda state, permanent: True,  # the sacrifice is part of the ability's cost
     },
     EffectId.BARRELS_OF_BLASTING_JELLY: {
         "cast": {"resolve": lambda state, card_def: cast_permanent_from_hand(state, card_def)},
@@ -636,6 +638,7 @@ COLORLESS_EFFECT_REGISTRY = {
         "cast": {"resolve": lambda state, card_def: cast_permanent_from_hand(state, card_def)},
         "mana": ("flexible", set(COLORS)),
         "on_tap": lambda state, permanent: _lotus_petal_on_tap(state, permanent),
+        "mana_tap_removes_self": lambda state, permanent: True,  # the sacrifice is part of the ability's cost
     },
     # Kept explicit (rather than omitted) because several self-checks reassign
     # registry.EFFECT_REGISTRY[EffectId.FILLER] via direct bracket indexing.

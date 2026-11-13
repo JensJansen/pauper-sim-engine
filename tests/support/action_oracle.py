@@ -16,6 +16,10 @@ What is shared with the engine (listed so nobody mistakes the oracle for more th
   * game.effects.stats.has_haste, game.has_unfulfilled_goad, and the pending-kind option functions used for "Choose: X";
   * the label strings themselves.
 
+Judged families (COVERED): pass, lands, casts, graveyard/exile casts, plots, activations, cycling, taps, pool spending, the
+decision buttons and "Choose: X" names of every pending kind (`_pending_labels`), and the Mode/X/Delve cast buttons. Not
+judged here: the combat buttons (A6) and the mana sub-decision rows Produce/Filter/extra taps (A5).
+
 Rules that differ from the real game on purpose are listed in AUTHORIZED / ASSUMPTIONS below. The oracle follows the
 authorized ones (so it does not report them) and reports everything else.
 """
@@ -54,7 +58,8 @@ ASSUMPTIONS = {}  # engine behaviours mirrored but not authorized: none open (th
 # tests/component/action_space/test_a2_oracle.py.
 MODES = frozenset()
 
-COVERED = {"pass", "play_land", "cast", "gy_cast", "plot", "activate", "cycle", "impulse", "tap", "spend"}
+COVERED = {"pass", "play_land", "cast", "gy_cast", "plot", "activate", "cycle", "impulse", "tap", "spend",
+           "decision", "choose_name", "cast_button"}
 
 
 def family(label, extra_tap_names=()):
@@ -89,6 +94,8 @@ def family(label, extra_tap_names=()):
         return "cast_button"
     if label.startswith("Choose: "):
         return "choose_name"
+    if label in ("Done blocking", "Assign combat damage to opponent"):
+        return "combat_button"  # judged by the combat suite (A6), not here
     return "decision"
 
 
@@ -289,7 +296,7 @@ def _oracle_labels(state):
             out |= {f"Spend {c} from pool" for c in POOL if me.mana_pool.get(c, 0) > 0 and (rem.get(c, 0) > 0 or gen)}
 
     if pend is not None:
-        return out  # everything below is a top-level action: legal only with nothing pending
+        return out | _pending_labels(state, me, pend)  # everything below is a top-level action: legal only with nothing pending
 
     if not (state.phase is game.turn.Phase.DECLARE_ATTACKERS and game.has_unfulfilled_goad(state)):
         out.add("Pass")
@@ -305,6 +312,116 @@ def _oracle_labels(state):
         out |= _graveyard_labels(state, me, name)
     out |= _exile_labels(state, me)
     out |= _battlefield_ability_labels(state, me)
+    return out
+
+
+# Kinds whose by-name "Choose: X" candidates the table offers, and the shared function that lists the candidates.
+_CHOOSE_NAME = {
+    "search_fetch": game.search_fetch_options, "throne_reveal": game.throne_reveal_options,
+    "discard": game.discard_options, "discard_or_sacrifice": game.discard_or_sacrifice_discard_options,
+    "order_triggers": game.order_triggers_options, "put_on_top": game.put_on_top_options,
+    "ponder": game.ponder_options,
+}
+_CHOOSE_NAME_EXCL_DECLINE = {"ancient_stirrings": game.ancient_stirrings_options,
+                             "malevolent_rumble": game.malevolent_rumble_options}
+
+
+def _pending_labels(state, me, pend):
+    """The decision buttons and "Choose: X" names legal while `pend` is open, from what each question asks (a "may" is
+    always declinable, a button that pays needs the payment affordable, ...). The candidate NAMES come from the engine's
+    per-kind option functions (shared, see the module doc); which kinds offer names, when, and which buttons exist is
+    restated here."""
+    kind, out = pend["kind"], set()
+    ordering = pend.get("ordered") is not None
+    if kind in _CHOOSE_NAME:
+        out |= {f"Choose: {n}" for n in _CHOOSE_NAME[kind](state)}
+    if kind in _CHOOSE_NAME_EXCL_DECLINE:
+        out |= {f"Choose: {n}" for n in _CHOOSE_NAME_EXCL_DECLINE[kind](state) if n != "decline"}
+    if kind in ("scry", "surveil"):
+        if ordering:
+            out |= {f"Choose: {n}" for n in game.scry_surveil_options(state)}
+        if pend["remaining"]:
+            out |= {"Keep (scry/surveil)", "Dispose (scry/surveil)"}
+    if kind == "select_to_hand":
+        if ordering:
+            out |= {f"Choose: {n}" for n in game.select_to_hand_options(state)}
+        if pend["remaining"]:
+            out.add("Bottom (select to hand)")
+            if pend["eligible"](pend["remaining"][0]):
+                out.add("Keep (select to hand)")
+    if kind == "ancient_stirrings":
+        out.add("Decline (Ancient Stirrings)")
+    if kind == "malevolent_rumble":
+        out.add("Decline (Malevolent Rumble)")
+    if kind == "ponder" and not pend["ordered"]:
+        out.add("Shuffle (Ponder)")
+    if kind == "pay_unless":
+        out.add("Don't pay (unless)")
+        if can_afford(state, pend["cost"]):
+            out.add("Pay (unless)")
+    if kind == "tuck_position":
+        out |= {"Tuck: 2nd from top", "Tuck: bottom"}
+    if kind == "may_transform":
+        out |= {"Transform", "Don't transform"}
+    if kind == "may_copy":
+        out |= {"Copy spell", "Don't copy spell"}
+    if kind == "may_cast":
+        out |= {"Cast (may)", "Decline (may)"}
+    if kind == "search_fetch" and pend.get("optional") and game.search_fetch_options(state):
+        out.add("Decline (search)")
+    if kind == "choose_graveyard_card" and pend.get("optional") and game.choose_graveyard_card_options(state):
+        out.add("Decline (graveyard)")
+    if kind == "discard" and pend.get("optional") and game.discard_options(state):
+        out.add("Decline (discard)")
+    if kind == "discard_or_sacrifice":
+        out.add("Decline (discard or sacrifice)")
+        if game.discard_or_sacrifice_can_sacrifice(state):
+            out.add("Sacrifice a permanent (discard or sacrifice)")
+    if kind == "madness_decision":
+        out.add("Decline (madness)")
+        if can_afford(state, REG[pend["card_def"].effect_id]["madness"]["cost"]):
+            out.add("Cast (madness)")
+    if kind == "choose_target_player":
+        out.add("Target: yourself")
+        if len(state.players) > 1:
+            out.add("Target: opponent")
+    if kind == "choose_any_target":
+        if pend["allow_players"]:
+            out.add("Target any: yourself")
+            if len(state.players) > 1:
+                out.add("Target any: opponent")
+        if pend.get("optional", False):
+            out.add("Choose no target")
+    if kind == "choose_room":
+        out |= {f"Enter room: {r}" for r in pend["options"]}
+    if kind == "choose_mana_color":
+        out |= {f"Add mana: {c}" for c in COLORS}
+    if kind == "choose_cast_x":
+        for x in range(pend["max_x"] + 1):
+            c = dict(pend["base_cost"])
+            c["generic"] = c.get("generic", 0) + x
+            if can_afford(state, c):
+                out.add(f"X={x}")
+    if kind == "choose_delve_amount":
+        cd = pend["card_def"]
+        for n in range(min(pend["max_n"], len(me.graveyard)) + 1):
+            c = dict(cd.cast_cost)
+            c["generic"] = max(0, c.get("generic", 0) - n)
+            if can_afford(state, c):
+                out.add(f"Delve {n}")
+    if kind == "choose_cast_mode":
+        cd = pend["card_def"]
+        spec = REG.get(cd.effect_id, {})
+        items = list((spec.get("cast_modes") or spec.get("x_cast_modes")).items())
+        for i, (_n, m) in enumerate(items[:len(pend["modes"])]):
+            if m.get("extra_legal") is not None and not m["extra_legal"](state):
+                continue
+            base = m.get("cost")
+            if base is None:
+                base = effective_cost(state, cd)
+            if any(can_afford(state, {**base, "generic": base.get("generic", 0) + x})
+                   for x in range(m.get("max_x", 0) + 1)):
+                out.add(f"Mode {i + 1}")
     return out
 
 

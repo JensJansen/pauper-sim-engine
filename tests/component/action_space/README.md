@@ -36,10 +36,11 @@ ability before attackers are declared (real Magic allows that in the beginning-o
 A1 ~35 s; A3 ~1 min; A5 see below; A6 ~20 s). Knobs: `ACTION_CORPUS_GAMES`, `ACTION_CORPUS_NOCACHE`, `ACTION_PURITY_EVERY`,
 `ACTION_FORK_EVERY`.
 
-**Planted bugs.** `mutations.py` (`python tests/support/mutation_sweep.py action_space`). Entries marked KNOWN-GAP are bugs in
-families the oracle does not judge yet and are expected to survive.
+**Planted bugs.** `mutations.py` (`python tests/support/mutation_sweep.py action_space`). An entry marked KNOWN-GAP would be a bug in a family
+the oracle does not judge yet (expected to survive); none are open. The oracle judges every table family except the
+combat buttons (A6 judges those), the mana sub-decision rows (`Produce`, `Filter`, extra taps), which A5 covers.
 
 **Not built yet (see `PLAN.md`).** The per-card scenario matrix with a coverage gate (L7: includes the impulse-deadline
-mutation); decision-button and "Choose: X" families in the oracle; metamorphic invariance (L8); pointer bridge vs the legacy
+mutation); metamorphic invariance (L8); pointer bridge vs the legacy
 full table (L9); adversarial-policy liveness fuzz (L10); rollout/update mask consistency (L11); scripted winning lines (L13);
 a test that every `AUTHORIZED SIMPLIFICATION` marker in `src/` has an entry in the oracle's ledger.

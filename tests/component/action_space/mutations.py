@@ -5,8 +5,8 @@ guards it, and treat any survivor as a hole in the tests, not a nuisance.
 Run:  python tests/support/mutation_sweep.py action_space          (all)  |  ... action_space 3 7  |  ... --baseline
 
 Each entry: (file under src/, exact old text -- must occur exactly once --, replacement, what bug it models).
-Entries marked KNOWN-GAP are bugs in a family the oracle does not judge yet; they are expected to SURVIVE until that
-layer exists, and are listed so the gap is visible rather than assumed away."""
+A KNOWN-GAP entry would be a bug in a family the oracle does not judge yet (expected to SURVIVE, listed so the gap is
+visible); none are open."""
 
 COMPONENT = "action_space"
 TIMEOUT = 900  # seconds per mutation; a survivor runs the whole component (~6 min), a hang is a catch
@@ -154,8 +154,11 @@ MUTATIONS = [
     (GM, "        elif granted:", "        elif False:", "F-03 back: a grant on a multi-symbol source is dropped from affordability"),
     (GM, "for combo in product(*(c.alternatives for c in choices)))", "for combo in product(*(c.alternatives[:1] for c in choices)))",
      "an either-or supply unit is only ever used its first way"),
-    # --- KNOWN-GAP: families the oracle does not judge yet (decision buttons) ---
+    # --- decision buttons and "Choose: X" (judged by the oracle's _pending_labels) ---
     (R, "    return pending is not None and pending[\"kind\"] == \"ancient_stirrings\"\n\n\n_decline_legal._pending_gate",
-     "    return False\n\n\n_decline_legal._pending_gate", "KNOWN-GAP: Ancient Stirrings' Decline button never legal"),
+     "    return False\n\n\n_decline_legal._pending_gate", "Ancient Stirrings' Decline button never legal"),
+    (R, "    return game.plan_payment(state, pending[\"cost\"]) is not None", "    return True", "Pay (unless) offered when the payer cannot afford it"),
+    (R, "    return pending is not None and pending[\"kind\"] == \"ponder\" and not pending[\"ordered\"]", "    return pending is not None and pending[\"kind\"] == \"ponder\"", "Shuffle (Ponder) still offered after a card was placed on top"),
+    (R, "        return game.ponder_options(state)", "        return game.ponder_options(state)[:1]", "Ponder offers only its first card by name"),
     (R, "    return pending is not None and pending[\"kind\"] == \"may_transform\"", "    return False", "may-transform buttons never legal (caught: real games then reach an all-False mask)"),
 ]

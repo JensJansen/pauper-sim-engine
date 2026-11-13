@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pauper-sim-engine"
+version = "0.1.0"
+description = "Rules engine for the pauper_sim Magic: the Gathering subset: card catalog, game loop, and the legal-action table/mask layer."
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["game*", "drl_env*"]
+
+[tool.pytest.ini_options]
+# tests/ is on the path so every tier can `from support import ...`; the engine itself is src/ (installed with
+# `pip install -e .`, pythonpath keeps a plain `pytest` working from a checkout without the install).
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+# importlib: test files with the same basename may live in different tiers/components.
+addopts = "--import-mode=importlib"
+markers = [
+    "unit: one card / function / rule with fabricated inputs -- tests/unit (applied automatically from the folder)",
+    "component: a subsystem against its contract over real games -- tests/component (applied automatically)",
+]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+# Bug-finding and dead-code rules only -- no formatting/style rules, so the
+# linter never asks for churn. Deliberately NOT enabled (each would change
+# behavior, not just spelling):
+#   B905  zip(strict=...) raises where zip silently truncates today.
+#   PLW0108  `lambda: f()` -> `f` swaps call-time name lookup for def-time
+#            binding, which breaks monkeypatching of f.
+#   PLW0603  the per-process module-global caches (build_pool etc.) are deliberate.
+select = ["E4", "E7", "E9", "F", "B", "PLE", "PLW", "C4", "PIE", "SIM", "RET5", "RUF100", "RUF019"]
+ignore = ["B905", "PLW0108", "PLW0603"]
+# BLE001 (blind except) isn't enabled, but `# noqa: BLE001` marks intentional broad excepts.
+external = ["BLE001"]
+
+[tool.ruff.lint.per-file-ignores]
+# Package __init__s aggregate their submodules on purpose (re-exports, star imports).
+"__init__.py" = ["F401", "F403"]
+# Mirrors drl_env's own star-import surface (the private _actions_* names under test).
+"tests/component/action_space/test_action_table.py" = ["F403", "F405"]

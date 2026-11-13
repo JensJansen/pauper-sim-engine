@@ -1,0 +1,55 @@
+4 Forest
+4 Island
+4 Mountain
+4 Plains
+4 Swamp
+1 Ash Barrens
+1 Bojuka Bog
+1 Conduit Pylons
+1 Contaminated Aquifer
+1 Drossforge Bridge
+1 Gingerbread Cabin
+1 Great Furnace
+1 Ice Tunnel
+1 Jagged Barrens
+1 Mistvault Bridge
+1 Rakdos Carnarium
+1 Seat of the Synod
+1 Silverbluff Bridge
+1 Slagwoods Bridge
+1 Tocasia's Dig Site
+1 Twisted Landscape
+1 Urza's Mine
+1 Urza's Power Plant
+1 Urza's Tower
+1 Vault of Whispers
+1 Wooded Ridgeline
+1 Agony Warp
+1 Armadillo Cloak
+1 Blood Fountain
+1 Bramble Wurm
+1 Cartouche of Solidarity
+1 Cleansing Wildfire
+1 Cryptic Serpent
+1 Dispel
+1 Eviscerator's Insight
+1 Fanatical Offering
+1 Galvanic Blast
+1 Gladecover Scout
+1 Gurmag Angler
+1 Kitchen Imp
+1 Lead the Stampede
+1 Lotleth Giant
+1 Makeshift Munitions
+1 Mental Note
+1 Nihil Spellbomb
+1 Ponder
+1 Rally at the Hornburg
+1 Reckless Lackey
+1 Rooftop Percher
+1 Silhana Ledgewalker
+1 Snuff Out
+1 Thoughtcast
+1 Unexpected Fangs
+1 Voldaren Epicure
+1 Writhing Chrysalis

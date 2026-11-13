@@ -1,0 +1,55 @@
+4 Forest
+4 Island
+4 Mountain
+4 Plains
+4 Swamp
+1 Ash Barrens
+1 Bojuka Bog
+1 Conduit Pylons
+1 Contaminated Aquifer
+1 Drossforge Bridge
+1 Gingerbread Cabin
+1 Great Furnace
+1 Ice Tunnel
+1 Jagged Barrens
+1 Mistvault Bridge
+1 Rakdos Carnarium
+1 Seat of the Synod
+1 Silverbluff Bridge
+1 Slagwoods Bridge
+1 Tocasia's Dig Site
+1 Twisted Landscape
+1 Urza's Mine
+1 Urza's Power Plant
+1 Urza's Tower
+1 Vault of Whispers
+1 Wooded Ridgeline
+1 Abandon Attachments
+1 Ancestral Mask
+1 Balustrade Spy
+1 Boulderbranch Golem
+1 Burning-Tree Emissary
+1 Chain Lightning
+1 Counterspell
+1 Deep Analysis
+1 End the Festivities
+1 Experimental Synthesizer
+1 Fireblast
+1 Generous Ent
+1 Goblin Tomb Raider
+1 Highway Robbery
+1 Land Grant
+1 Lightning Bolt
+1 Lórien Revealed
+1 Masked Vandal
+1 Murmuring Mystic
+1 Overgrown Battlement
+1 Pulse of Murasa
+1 Rancor
+1 Refurbished Familiar
+1 Saruli Caretaker
+1 Slippery Bogle
+1 Terminate
+1 Tolarian Terror
+1 Utrom Monitor
+1 Wellwisher

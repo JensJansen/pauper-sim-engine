@@ -6,7 +6,28 @@ def _check_end_of_game(state):
     """Central end-of-game check, called wherever board state can change
     enough to matter. Two win paths (2-player only): the opponent's life
     hits 0, or the active player's own life hits 0 (opponent wins; a bare
-    no-winner failure in 1-player). No-op once the game has ended."""
+    no-winner failure in 1-player). Both players at 0 life is a draw
+    (104.4a): winner None, state.is_draw True.
+
+    Sets state.turn_won / state.winner only; game.turn is what stops the
+    game (no further decision, stack resolution or phase once turn_won is
+    set). The effect that took a life total to 0 still finishes resolving
+    first, so a later call in that same effect can turn a decided win into
+    a draw -- the one case where a decided game is revisited. Otherwise a
+    no-op once the game has ended.
+
+    AUTHORIZED SIMPLIFICATION (owner, 2026-11-16): real Magic ends the game
+    at the next state-based-action check (704.5a), and a player could in
+    principle recover above 0 before it; here the game is over the moment an
+    effect leaves a life total at 0 or less, and the first life total to
+    get there loses (the other player wins) unless the same effect also
+    takes the other player to 0 or less (draw)."""
+    if len(state.players) > 1 and all(p.life_total <= 0 for p in state.players):
+        if state.turn_won is None:
+            state.turn_won = state.turn_number
+        state.winner = None
+        state.is_draw = True
+        return
     if state.turn_won is not None:
         return
     active_idx = state.active_idx

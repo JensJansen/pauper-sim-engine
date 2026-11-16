@@ -70,6 +70,17 @@ Self-contained, no ML dependency.
   Robot, Warrior, Eldrazi Spawn, Food, Clue, Treasure, and more),
   affinity/delve/escape cost reduction, state-based actions, decking out,
   life-total win checks.
+- **Game end.** A life total at 0 or less, or decking out, ends the game:
+  `state.turn_won` is set and `game.turn` asks no one for anything further and
+  resolves nothing further (it finishes the effect that decided the game, then
+  stops). One effect taking both players to 0 is a draw (`state.winner` None,
+  `state.is_draw` True).
+
+> **AUTHORIZED SIMPLIFICATION** (owner-approved 2026-11-16). The game ends as
+> soon as the effect that took a life total to 0 has finished resolving, not
+> at the next state-based-action check (704.5a), so a life total cannot
+> recover above 0 first; the first player to reach 0 loses unless the same
+> effect also takes the other player to 0 (a draw, 104.4a).
 
 ### Mana: cast then pay
 

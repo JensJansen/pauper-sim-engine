@@ -292,6 +292,8 @@ def _declare_blockers_gen(state):
             action = yield
             state.players[state.active_idx].actions_taken += 1
             action()  # "Done" is its own explicit action; None (Pass) is never expected here
+            if state.turn_won is not None:  # the game ended inside this action
+                return
     finally:
         state.active_idx = attacker_idx
         state.log_event("priority_flip", reason="declare_blockers_done", to_idx=state.active_idx)
@@ -372,6 +374,12 @@ def _run_priority_round_gen(state):
     item resolves and priority resets to turn_player_idx (rule 1), and the
     round repeats; if empty, this generator ends and the phase can advance.
 
+    The round also ends, at once, the moment the game is decided
+    (state.turn_won set -- a life total reached 0): no one is asked for
+    anything further and no further stack item resolves. The action or
+    resolution that decided it has already run to completion. Priority is
+    handed back to the turn player, as on a normal exit.
+
     Never called for Phase.UNTAP (rule 4). Phase.END calls this only
     conditionally; once entered, it behaves like any other phase."""
     state.active_idx = state.turn_player_idx
@@ -384,6 +392,9 @@ def _run_priority_round_gen(state):
     state.casting_depth = 0
     consecutive_passes = 0
     while True:
+        if state.turn_won is not None:  # decided by the action/resolution that just finished: ask no one anything further
+            state.active_idx = state.turn_player_idx
+            return
         if state.casting_depth <= 0:
             check_state_based_actions(state)
             refizzle_if_now_targetless(state)
@@ -447,7 +458,8 @@ def _run_turn_gen(state, combat_enabled=False):
     Wrapped in try/except DeckedOut: a draw in any phase can raise
     DeckedOut from arbitrarily deep in a resolution chain; catching it
     here ends the turn/generator immediately, with state.decked_out
-    already set by draw() itself.
+    already set by draw() itself. A game already decided by life total
+    (state.turn_won set earlier in the same effect) keeps its outcome.
 
     combat_enabled: per-deck opt-in (default off) -- only rakdos
     madness/mono red madness/boggles pass True."""
@@ -549,6 +561,8 @@ def _run_turn_gen(state, combat_enabled=False):
                             action = yield
                             state.players[state.active_idx].actions_taken += 1
                             action()
+                            if state.turn_won is not None:  # the game ended inside this action
+                                return
                         if state.turn_won is not None:
                             return
                         if not state.trigger_queue:
@@ -574,7 +588,7 @@ def _run_turn_gen(state, combat_enabled=False):
         # Decking out is an instant loss for whoever draws from an empty
         # library. In 2-player the OTHER player wins outright; in 1-player
         # there's no one to award the win to, so turn_won/winner stay None.
-        if len(state.players) > 1:
+        if len(state.players) > 1 and state.turn_won is None:
             state.turn_won = state.turn_number
             state.winner = 1 - state.active_idx
         return

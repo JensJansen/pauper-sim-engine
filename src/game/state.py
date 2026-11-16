@@ -374,12 +374,17 @@ class GameState:
 
         self.phase = None  # set by game.turn._run_turn_gen at the start of each phase; None until then
 
-        # turn_won: the turn the game ended on (life hitting 0, horizon cap,
-        # decking out), None while in progress. winner: which player
-        # (index) won, only ever set in a 2-player game -- stays None for a
-        # bare failure (horizon reached, or 1-player decking out).
+        # turn_won: the turn the game ended on (life hitting 0, decking out),
+        # None while in progress -- and None at the horizon cap. winner:
+        # which player (index) won, only ever set in a 2-player game -- stays
+        # None for a bare failure (horizon reached, or 1-player decking out)
+        # and for a draw. is_draw: both players' life totals reached 0 in the
+        # same effect (104.4a); turn_won is set, winner stays None. Once
+        # turn_won is set the game is over: game.turn stops asking for
+        # decisions and resolving anything further (see win_check).
         self.turn_won = None
         self.winner = None
+        self.is_draw = False
 
         # Which player (index) currently has THE INITIATIVE (Avenging
         # Hunter), or None. game.effects.undercity.take_initiative sets it
